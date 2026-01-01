@@ -1,0 +1,11 @@
+# Rust / Cargo
+/target/
+
+# Environment
+.env
+.env.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
