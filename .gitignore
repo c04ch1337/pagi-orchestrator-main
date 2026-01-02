@@ -1,6 +1,10 @@
 # Rust / Cargo
 /target/
 
+# Runtime data / local artifacts
+/logs/
+/pagi_knowledge_base/
+
 # Environment
 .env
 .env.*

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use interprocess::local_socket::LocalSocketStream;
-use pagi_core_lib::{AgentFact, AgentIdentity, BaseAgent, PAGICoreModel};
+use pagi_core_lib::{AgentFact, AgentIdentity, AuthScope, BaseAgent, PAGICoreModel};
 use std::io::Write;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -102,7 +102,24 @@ impl BaseAgent for CybersecurityAgent {
         task_input: &str,
     ) -> String {
         send_ipc_status("CybersecurityAgent: starting triage");
+        println!("Cybersecurity Agent: Executing Triage Plan using ExternalAPI scope.");
         println!("[CybersecurityAgent] Triage requested with input: {task_input}");
+
+        // PoLP gate: require ExternalAPI before performing any external integration.
+        if let Err(e) = core.check_authorization(identity, AuthScope::ExternalAPI) {
+            return format!("CybersecurityAgent missing ExternalAPI scope: {e}");
+        }
+
+        // Load config + instantiate external clients (integration-test style).
+        let config = pagi_external_api_lib::config::PAGIConfig::load();
+        let jira_client = pagi_external_api_lib::api_clients::JiraClient::new(config.clone());
+
+        // Execute a high-privilege action (simulated external call).
+        let issue_summary = "Security Incident: Triage Required via PAGI";
+        if let Err(e) = jira_client.create_issue(issue_summary).await {
+            return format!("CybersecurityAgent external action failed: {e}");
+        }
+
         tokio::time::sleep(std::time::Duration::from_millis(80)).await;
 
         let timestamp = SystemTime::now()
@@ -115,12 +132,12 @@ impl BaseAgent for CybersecurityAgent {
             timestamp,
             fact_type: "CyberTriageResult".to_string(),
             content: format!(
-                "Simulated cyber triage completed successfully. Input was: {task_input}."
+                "Simulated cyber triage completed successfully. Jira issue created: '{issue_summary}'. Input was: {task_input}."
             ),
         };
 
         match core.record_fact(identity, fact) {
-            Ok(()) => "Cyber triage fact recorded successfully".to_string(),
+            Ok(()) => "CybersecurityAgent: triage completed and fact recorded successfully".to_string(),
             Err(e) => format!("Cyber triage failed to record fact: {e}"),
         }
     }
